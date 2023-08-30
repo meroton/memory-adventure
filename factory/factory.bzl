@@ -1,5 +1,7 @@
 """Rule factory that creates a rule for someone to use."""
 
+load("@//Parameters:Codegen.bzl", "CodeGenInfo")
+
 def make(defaultvalue):
     """Make a codegen rule.
 
@@ -53,6 +55,7 @@ def _impl(ctx):
     )
 
     return [
+        CodeGenInfo(),
         DefaultInfo(
             files = depset([out]),
         ),

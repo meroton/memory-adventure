@@ -1,0 +1,9 @@
+load(":spin.bzl", "target")
+
+# Up to about 100 works, after that the actions
+# fail to address the memory buffer.
+[target(
+    index = i,
+    name = "lock_{}".format(i),
+    srcs = ["//:Runner"],
+) for i in range(25)]

@@ -57,7 +57,7 @@ def format(target):
 
     # NB: You may iterate over all output groups and print them here. This just checks default.
     group = "default"
-    if group in output:
+    if output and group in output:
         res += header("OutputGroupInfo " + group)
         res += LIST_SEP + ", ".join([f.path for f in output[group].to_list()])
         res += "\n"

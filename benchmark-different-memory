@@ -1,0 +1,46 @@
+#!/bin/sh
+
+test $# -lt  2 && {
+    echo >&2 "Usage: $0 <data directory> <memory> [attempt] [--skip-if-exists]"
+    echo "Example: dir/ 250m 3"
+    exit 1
+}
+
+set -eu
+
+datadir=$1; shift
+mem=$1; shift
+attempt=${1:-0}
+skip=${2:-}
+dir=$datadir/$mem-$attempt
+
+test "$skip" != "" && test -d "$dir" && {
+    echo "Skipping existing $dir"
+    exit 0
+}
+
+mkdir -p "$dir"
+
+# shellcheck disable=SC2086
+bazel $STARTUP_FLAGS clean
+# # nobuild or skymeld
+#     --nobuild \
+#     --experimental_merged_skyframe_analysis_execution \
+# shellcheck disable=SC2086
+bazel $STARTUP_FLAGS --host_jvm_args=-Xmx"$mem" build \
+    --experimental_merged_skyframe_analysis_execution \
+    --generate_json_trace_profile \
+    --profile="$dir"/profile.gz \
+    --memory_profile="$dir"/memory.profile \
+    --starlark_cpu_profile="$dir"/starlark.pprof \
+    --heap_dump_on_oom \
+    --noslim_profile \
+    --build_event_json_file="$dir"/bep.json \
+    --remote_executor=grpc://localhost:8980 \
+    --remote_instance_name=hardlinking  \
+    --remote_default_exec_properties OSFamily=linux \
+    --remote_default_exec_properties container-image="docker://ghcr.io/catthehacker/ubuntu:act-22.04@sha256:5f9c35c25db1d51a8ddaae5c0ba8d3c163c5e9a4a6cc97acd409ac7eae239448" \
+    --aspects @example//memory:eat.bzl%traverse \
+    --output_groups=default,eat_memory \
+    //... \
+    2>&1 | tee "$dir"/console

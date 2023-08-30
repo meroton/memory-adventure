@@ -1,5 +1,7 @@
 """Generate header files for parameters given as `.json`."""
 
+CodeGenInfo = provider("marker", fields = ["marker"])
+
 def _impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".h")
 
@@ -17,6 +19,7 @@ def _impl(ctx):
     )
 
     return [
+        CodeGenInfo(),
         # NB: For code generation the file(s) shall be sent as `DefaultInfo::files`,
         # they will then be sent through the `FilesProvider` provider
         # and can be used as `srcs` in a `cc_library`.

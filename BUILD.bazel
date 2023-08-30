@@ -2,12 +2,9 @@ load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 
 cc_binary(
     name = "Program",
-    srcs = [
-        "Main.c"
-    ],
-    deps = [
-        "//Library:Library"
-    ],
+    srcs = ["Main.c"],
+    deps = ["//Library:Library"],
+    visibility = ["//visibility:public"],
 )
 
 py_binary(
@@ -16,6 +13,7 @@ py_binary(
     main = "run.py",
     data = [":Program"],
     deps = ["@rules_python//python/runfiles"],
+    visibility = ["//visibility:public"],
 )
 
 sh_binary(

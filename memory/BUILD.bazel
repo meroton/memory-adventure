@@ -1,0 +1,19 @@
+cc_binary(
+    name = "allocate",
+    srcs = ["allocate.c"],
+    visibility = ["//visibility:public"],
+)
+
+# stack a high dependency tree
+py_library(
+    name = "stack_0",
+    deps = ["//:Runner"],
+)
+[
+    py_library(
+        name = "stack_{}".format(index),
+        srcs = ["extra.py"],
+        deps = [":stack_{}".format(index - 1)],
+    )
+    for index in range(1, 2)
+]
