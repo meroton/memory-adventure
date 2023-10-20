@@ -1,5 +1,17 @@
-Documentation
-~~~~~~~~~~~~~
+Memory Adventure
+~~~~~~~~~~~~~~~~
+
+This is the home of the analysis code developed for our `Bazelcon 2023 talk`_
+and further development.
+
+.. TODO: Add link when it is available.
+
+Documentation for the example project itself
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note::
+
+    This is a forked from https://github.com/meroton/bazel-examples
 
 Building
 ========
