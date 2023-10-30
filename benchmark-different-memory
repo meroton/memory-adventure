@@ -44,3 +44,7 @@ bazel $STARTUP_FLAGS --host_jvm_args=-Xmx"$mem" build \
     --output_groups=default,eat_memory \
     //... \
     2>&1 | tee "$dir"/console
+
+# shellcheck disable=SC2086
+bazel $STARTUP_FLAGS --host_jvm_args=-Xmx"$mem" dump \
+    --skylark_memory="$dir/memory.pprof"
