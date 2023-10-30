@@ -19,14 +19,14 @@ Plot time and garbage collection pressure for Bazel builds with varying memory.
 ## Measurement Data
 
 This requires Bazel's `profiling data`_ for multiple build with different memory limits.
-Bazel's memory can be limitted through the startup option:
+Bazel's memory can be limited through the startup option:
 
-    --export STARTUP_FLAGS \                                                                               jobs: 5
+    --export STARTUP_FLAGS \
         --host_jvm_args=-Xmx500m
 
 And you want the allocation instrumenter, as is explained in the `memory guide`_
 
-    set --export STARTUP_FLAGS \                                                                               jobs: 5
+    set --export STARTUP_FLAGS \
         --host_jvm_args=-javaagent:java-allocation-instrumenter-3.3.0.jar \
         --host_jvm_args=-DRULE_MEMORY_TRACKER=1 \
         --host_jvm_args=-Xmx500m
@@ -52,12 +52,12 @@ it is designed to make multiple attempts with different memory limits.
 This has a bunch of flags, first skymeld, nobuild, or just regular,
 then the `profiling data`_ flags,
 followed by remote execution to a local Buildbarn deployment
-and finaly our memory traversal aspect that we want to benchmark.
+and finally our memory traversal aspect that we want to benchmark.
 You probably want to split this up into multiple bash arrays or bazelrc configs.
 
 .. _measurement driver:
 
-You can drive measurments with any looper-program, or two nested shell loops.
+You can drive measurements with any looper-program, or two nested shell loops.
 We used `hyperfine`_,
 which is a great general purpose benchmarking tool
 but we do not actually use its time measurement.
@@ -95,10 +95,10 @@ containing comma-separated (csv) data:
 
 We think that the following data points are very interesting:
     # The active functions at the time of a crash
-    # All functions in a succesfful build
+    # All functions in a successful build
 These can be combined
     # The most commonly seen functions when Bazel crashes
-    # The most overrepresented fucntions when Bazel crashes,
+    # The most overrepresented functions when Bazel crashes,
       this requires the baseline distribution.
 Additionally you can look at functions and correlate with GC events
     # Number of time-adjusted GC events during evaluation of a function.

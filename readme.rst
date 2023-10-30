@@ -6,6 +6,168 @@ and further development.
 
 .. TODO: Add link when it is available.
 
+Background
+==========
+
+We want to find allocations from crashed Bazel builds,
+some starlark code somewhere is eating too much memory.
+Most of the built-in tools provide post-hoc analysis
+that require the bazel server to survive, we can then dig into its data structures.
+But if it crashes, all the data is torn down and we have very little to work with.
+
+The first step is to follow the `memory profiling guide`_,
+which highlights `bazel dump --rules`
+this is often useful at indicating list errors,
+where a depset can drastically improve memory requirements.
+But we found that in this example it does not give the correct answer.
+
+Measurement Data
+================
+
+This requires Bazel's `profiling data`_ for multiple build with different memory limits.
+Bazel's memory can be limited through the startup option::
+
+    --export STARTUP_FLAGS \
+        --host_jvm_args=-Xmx500m
+
+And you want the allocation instrumenter, as is explained in the `memory profiling guide`_::
+
+    set --export STARTUP_FLAGS \
+        --host_jvm_args=-javaagent:java-allocation-instrumenter-3.3.0.jar \
+        --host_jvm_args=-DRULE_MEMORY_TRACKER=1 \
+        --host_jvm_args=-Xmx500m
+
+.. _memory profiling guide: https://bazel.build/rules/performance#memory-profiling
+
+Profiling data
+--------------
+
+To enable the profiling data add the following flags to your build
+`--generate_json_trace_profile` and `--profile=<profile file>`,
+for better fidelilty we recommend `--noslim_profile`, to avoid merging events,
+which is faster but requires extra effort to parse.
+
+You can also save the console output, the build event protocol (`--build_event_json_file`),
+Starlark CPU pprof-profile (`--starlark_cpu_profile=<pprof file>`),
+and heap (`--heap_dump_on_oom`). This will capture the most data for you,
+so you can analyze it further after the fact.
+There is certainly more signal to find in all this data than what we have today.
+
+Sample benchmarking file
+------------------------
+
+You can start with `benchmark-different-memory` in this repository,
+it is designed to make multiple attempts with different memory limits.
+
+This has a bunch of flags, first skymeld, nobuild, or just regular,
+then the `profiling data`_ flags,
+followed by remote execution to a local Buildbarn deployment
+and finally our memory traversal aspect that we want to benchmark.
+You probably want to split this up into multiple bash arrays or bazelrc configs.
+
+Note that this does not set the `STARTUP_FLAGS`,
+you need to set that in your interactive terminal.
+
+.. TODO: Set STARTUP_FLAGS in the script if they are missing.
+
+Measurement driver
+------------------
+
+You can drive measurements with any looper-program, or two nested shell loops.
+We used `hyperfine`_,
+which is a great general purpose benchmarking tool
+but we do not actually use its time measurement.
+
+First is the loop of memory limits,
+then you decide the number of iterations for each limit.
+Following good practices, we used warmup runs for each limit,
+but did not see any difference in the behavior compared to real runs.
+
+Example::
+
+    hyperfine \
+        --parameter-list run "$( { echo WARMUP; seq 5; } | paste -sd ',')" \
+        --parameter-list mem "$( { seq 155 1 180; seq 190 5 250; seq 250 10 300; seq 300 50 1000; } | paste -sd ',')" \
+        --runs 1 \
+        --ignore-failure \
+        -- './benchmark-different-memory measurements-skymeld/ {mem}m {run} --skip-if-exists'
+
+Note that the memory is currently analyzed from the directory name.
+
+.. TODO: parse it from the profile, or write to a file in the directory.
+
+.. _hyperfine: https://github.com/sharkdp/hyperfine
+
+Extract stats
+-------------
+
+We now have the measurements we need, and can begin analyzing them.
+Here we split the path, first we will discuss the plots of build duration of this script,
+then we will discuss `further analysis`_ you can do to find memory thieves,
+which is not part of this program.
+
+This program requires the duration and garbage collection count from a measurement.
+The data is fed in one or two files (so you can cache the computation, see the `usage`_ section),
+containing comma-separated (csv) data::
+
+    <memory limit: <str>>,<iteration: int>,<gc count: int>,<duration: int>,<status: str: "crash"|"ok">
+
+
+Plot the memory consumption
+---------------------------
+
+This can then be plotted with `memory-plot.py`,
+a tool that takes one or two data serieses, as described above.
+
+.. _usage:
+
+::
+
+    # Generate the data, this takes a couple of seconds per build of this Bazel
+    # workspace. So using `tee` to cache the result speeds up iteration significantly.
+    # This uses bash's pseudo file redirection <(...) for convenience,
+    you can save the files directly if you want.
+    $ ./memory-plot.py --out plot-combined.png \
+        <(echo ./measurement-regular/*/ | xargs -n1 ./stats.sh | grep -v WARMUP | tee cache-regular) \
+        <(echo ./measurement-skymeld/*/ | xargs -n1 ./stats.sh | grep -v WARMUP | tee cache-skymeld)
+
+    # Iterate the plot on the same data.
+    $ ./memory-plot.py [--out phase-regular.png] --exclude-crashes cache-regular
+
+Further analysis
+================
+
+We think that the following data points are very interesting:
+
+    1. The active functions at the time of a crash
+    2. All functions in a successful build
+
+These can be combined:
+
+    1. The most commonly seen functions when Bazel crashes
+    2. The most overrepresented functions when Bazel crashes,
+       this requires the baseline distribution.
+
+Additionally you can look at functions and correlate with GC events
+
+    1. Number of time-adjusted GC events during evaluation of a function.
+
+Or the number of restarts for a function:
+
+    1. Additional restarts for each function in a low memory execution compared to high memory
+    2. Correlation of restarts in other functions.
+       Maybe a function causes other functions to restart,
+       so see if a correlated, or concurrent measure of restarts can be bound to all active threads.
+
+And much much more, please tell us your ideas.
+
+Basic Analysis
+==============
+
+Some basic measurements for memory pressure through garbage collection
+were implemented in `parse-profile.py` as part of the exploratory work,
+you can look at them, but we did not see any interesting signals.
+
 Documentation for the example project itself
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -480,6 +642,7 @@ We see that it does not work well for a `py_binary` to use it as a data dependen
 as we do not know what *file* to look for within the runfiles.
 This is done in the config directory, there is a Runner but it does not work.
 Try it for yourself with `bazel run //config:Runner`.
+
 ::
 
     $ bazel query --output=build //config:Runner
