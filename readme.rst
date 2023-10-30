@@ -20,19 +20,19 @@ Reproduction: Memory eater
 
 This project contains a small reproduction of pathological memory allocation,
 in a convoluted build tree.
-There is an aspect `./memory/eat.bzl` to consume large quantities of RAM,
-and a set of rules `./cpu/rules.bzl` that perform innocuous CPU work, with bounded allocations,
+There is an aspect ``./memory/eat.bzl`` to consume large quantities of RAM,
+and a set of rules ``./cpu/rules.bzl`` that perform innocuous CPU work, with bounded allocations,
 
 .. _memory-bound aspect:
 
 The memory eater aspect encodes the full dependency tree of all targets,
 providers and all, with many small strings that are concatenated.
-The big string is then tied to an `Action` object with `ctx.actions.write`.
+The big string is then tied to an ``Action`` object with ``ctx.actions.write``.
 So this string can not be freed until the action is executed.
 This can be tuned based on the dependency tree height to allocate more and more memory,
 but with this repository it is in the 200 - 500 MB range,
 to make iteration faster.
-We expect to find this as `traverse_impl` in the logs somewhere.
+We expect to find this as ``traverse_impl`` in the logs somewhere.
 
 .. _CPU-bound rules:
 
@@ -47,20 +47,20 @@ Post-hoc analysis
 -----------------
 
 The first step when troubleshooting memory is to follow the `memory profiling guide`_,
-which highlights `bazel dump --rules`
+which highlights ``bazel dump --rules``
 this is often useful at indicating list errors,
 where a depset can drastically improve memory requirements.
 But we found that in this example it does not give the correct answer.
 
-Then drill deeper with `bazel dump --skylark_memory=memory.pprof`,
-which writes the memory allocations to a `pprof` format file.
-Using a java `memory instrumenter` which is explained in the `guide`_.
+Then drill deeper with ``bazel dump --skylark_memory=memory.pprof``,
+which writes the memory allocations to a ``pprof`` format file.
+Using a java ``memory instrumenter`` which is explained in the `guide`_.
 
 .. _guide: `memory profiling guide`_
 
 .. note::
 
-    The script `benchmark-different-memory` and $STARTUP_FLAGS are described below
+    The script ``benchmark-different-memory`` and ``$STARTUP_FLAGS`` are described below
 
 ::
 
@@ -91,7 +91,7 @@ This looks good, and contains a lot of information,
 but we have been unable to find the real culprit,
 the exponential string allocation of the memory eater aspect.
 
-`impl4` and `spin10` are two of the `CPU-bound rules`_.
+``impl4`` and ``spin10`` are two of the `CPU-bound rules`_.
 
 To illustrate, using too little memory::
 
@@ -147,20 +147,20 @@ Profiling data
 --------------
 
 To enable the profiling data add the following flags to your build
-`--generate_json_trace_profile` and `--profile=<profile file>`,
-for better fidelity we recommend `--noslim_profile`, to avoid merging events,
+``--generate_json_trace_profile`` and ``--profile=<profile file>``,
+for better fidelity we recommend ``--noslim_profile``, to avoid merging events,
 which is faster but requires extra effort to parse.
 
-You can also save the console output, the build event protocol (`--build_event_json_file`),
-Starlark CPU pprof-profile (`--starlark_cpu_profile=<pprof file>`),
-and heap (`--heap_dump_on_oom`). This will capture the most data for you,
+You can also save the console output, the build event protocol (``--build_event_json_file``),
+Starlark CPU pprof-profile (``--starlark_cpu_profile=<pprof file>``),
+and heap (``--heap_dump_on_oom``). This will capture the most data for you,
 so you can analyze it further after the fact.
 There is certainly more signal to find in all this data than what we have today.
 
 Sample benchmarking file
 ------------------------
 
-You can start with `benchmark-different-memory` in this repository,
+You can start with ``benchmark-different-memory`` in this repository,
 it is designed to make multiple attempts with different memory limits.
 
 This contains a bunch of flags, first skymeld, nobuild, or just regular,
@@ -169,7 +169,7 @@ followed by remote execution to a local Buildbarn deployment
 and finally our memory traversal aspect that we want to benchmark.
 You probably want to split this up into multiple bash arrays or bazelrc configs.
 
-Note that this does not set the `STARTUP_FLAGS`,
+Note that this does not set the ``STARTUP_FLAGS``,
 you need to set that in your interactive terminal.
 
 There is currently no way to change build mode (skymeld, nobuild) from the measurement driver.
@@ -226,7 +226,7 @@ containing comma-separated (csv) data::
 Plot the memory consumption
 ---------------------------
 
-This can then be plotted with `memory-plot.py`,
+This can then be plotted with ``memory-plot.py``,
 a tool that takes one or two data serieses, as described above.
 
 .. _usage:
@@ -234,7 +234,7 @@ a tool that takes one or two data serieses, as described above.
 ::
 
     # Generate the data, this takes a couple of seconds per build of this Bazel
-    # workspace. So using `tee` to cache the result speeds up iteration significantly.
+    # workspace. So using 'tee' to cache the result speeds up iteration significantly.
     # This uses bash's pseudo file redirection <(...) for convenience,
     you can save the files directly if you want.
     $ ./memory-plot.py --out plot-combined.png \
@@ -275,7 +275,7 @@ Basic Analysis
 --------------
 
 Some basic measurements for memory pressure through garbage collection
-were implemented in `parse-profile.py` as part of the exploratory work,
+were implemented in ``parse-profile.py`` as part of the exploratory work,
 you can look at them, but we did not see any interesting signals.
 
 Documentation for the example project itself
@@ -316,7 +316,7 @@ There is also a linter aspect for the python code, that is configured with a too
     5 //Parameters:Generate
     5 //config:config_file
 
-The main points to build and run are `//:Runner` and `//:Program`.
+The main points to build and run are ``//:Runner`` and ``//:Program``.
 This compiles all the code and generated defines that are printed below::
 
     $ bazel run //:Program
@@ -383,7 +383,7 @@ We can find targets expanded by macros, and filter based on the macro name
 "generator_function" is the old name for "macro", some such old names leak through the Bazel abstractions.
 
 If we had a "write_source_file" target and macro, this would show both a write and a test target.
-You could add that for the reference output of `//:Program`!
+You could add that for the reference output of ``//:Program``!
 https://github.com/bazelbuild/bazel-skylib/blob/main/docs/write_file_doc.md
 
 ::
@@ -421,13 +421,13 @@ There is also a stack trace with filepaths to open all relevant BUILD and .bzl f
       cmd = "\n        ./$(location Program) > \"$@\"\n    ",
     )
 
-We can also look for certain kinds of rules with the `kind` function: `kind(<regexp>, <pattern>)`.::
+We can also look for certain kinds of rules with the ``kind`` function: ``kind(<regexp>, <pattern>)``.::
 
     $ bazel query 'kind(config_setting, //...)'
     config_setting rule //config:debug_build
     config_setting rule //config:opt_build
 
-Source files are also available, though they are not themselves part of the wildcard for `//...`::
+Source files are also available, though they are not themselves part of the wildcard for ``//...``::
 
     $ bazel query --output=label 'kind("source file", deps(//...))' | grep '^//'
     //:Main.c
@@ -441,7 +441,7 @@ Source files are also available, though they are not themselves part of the wild
     //config:main.c
     //config:run.py
 
-Without the `grep` we see source files from external repositories too!
+Without the ``grep`` we see source files from external repositories too!
 
 External repositories
 ---------------------
@@ -452,7 +452,7 @@ Can be shown::
 
 There are probably more than you thought, most of them are built in to Bazel,
 and not actually used in this repository.
-However, the real name `@<repo>//...` must be used to query for dependency paths.::
+However, the real name ``@<repo>//...`` must be used to query for dependency paths.::
 
     $ bazel query 'allpaths(//..., //external:*)'
     INFO: Empty results
@@ -471,15 +471,15 @@ it will automatically add --config=linux and so on.
 Follow selects
 --------------
 
-We have a configured dependency in `//config:ConfiguredBinary`.
+We have a configured dependency in ``//config:ConfiguredBinary``.
 With just query we see that it depends of both the regular and the statically linked library.::
 
     bazel query 'deps(//config:ConfiguredBinary, 1) intersect //Library:all'
     cc_library rule //Library:Library
     cc_static_library rule //Library:Static
 
-But the `config_setting` are mutually exclusive, based on the `--compilation_mode={fastbuild,opt,debug}` value.
-The flag is customarily used in its short form `-c=<value>`, and `fastbuild` is the default.
+But the ``config_setting`` are mutually exclusive, based on the ``--compilation_mode={fastbuild,opt,debug}`` value.
+The flag is customarily used in its short form ``-c=<value>``, and ``fastbuild`` is the default.
 
 bash ::
 
@@ -491,13 +491,13 @@ bash ::
     ---
     > //Library:Static (bfe6c4d)
 
-This switch will also show up visually in the `graph` output format.
+This switch will also show up visually in the ``graph`` output format.
 
 Graph
 -----
 
 Here is an example that shows the configuration of all targets in a graph.
-We do some `sed` to make it look nicer.::
+We do some ``sed`` to make it look nicer.::
 
     $ bazel cquery                             \
         --notool_deps --noimplicit_deps        \
@@ -514,7 +514,7 @@ We do some `sed` to make it look nicer.::
       "//:Runner (Generated)" -> "@rules_python//python/runfiles:runfiles (Generated)"
     ...
 
-This can be rendered to an svg with `graphviz` and the `dot` program.
+This can be rendered to an svg with ``graphviz`` and the ``dot`` program.
 
    $ bazel cquery ... | dot -Tsvg -o graph.svg
 
@@ -522,12 +522,12 @@ Config hash
 -----------
 
 In this example the config hash is "ca63adb", it may differ for you,
-update the `sed` command accordingly.
+update the ``sed`` command accordingly.
 
     $ bazel cquery //:Runner
     //:Runner (ca63adb)
 
-You can inspect this with `bazel config` to show platforms and many, many, more options.::
+You can inspect this with ``bazel config`` to show platforms and many, many, more options.::
 
     $ bazel config ca63adb | head
     INFO: Displaying config with id ca63adb
@@ -538,10 +538,10 @@ You can inspect this with `bazel config` to show platforms and many, many, more 
 ST hash
 -------
 
-This example does not have any ST hashes, they stick out from config hashes, in that they have `ST_` in the middle.
+This example does not have any ST hashes, they stick out from config hashes, in that they have ``ST_`` in the middle.
 Those are created by transitions that change the config of a target,
-and cannot be printed directly with `bazel config <ST hash>`.
-You need their config hash, which can be found by calling `bazel config` without any arguments.::
+and cannot be printed directly with ``bazel config <ST hash>``.
+You need their config hash, which can be found by calling ``bazel config`` without any arguments.::
 
     $ bazel config | grep <ST hash>
 
@@ -550,7 +550,7 @@ This will give you the config hash.
 Providers and output groups
 ---------------------------
 
-There is a cquery Starlark file in the project root `output_groups.cquery`
+There is a cquery Starlark file in the project root ``output_groups.cquery``
 that can be used to list all providers and output groups of a target.
 And pretty-print some of them, you would typically create such pretty printers for all internal providers.
 It helps a lot during rule development to inspect the rule outputs,
@@ -559,7 +559,7 @@ To select the prints interactively rather than coding in print-statements.
 
 It also servers as a basis for powerful shell completion tools.
 This was used to develop the Codegen code,
-see block comments in `Parameters/BUILD.bazel` and `Parameters/Codegen.bzl`.
+see block comments in ``Parameters/BUILD.bazel`` and ``Parameters/Codegen.bzl``.
 
 ::
 
@@ -652,7 +652,7 @@ Here is a side-by-side that may be useful::
 Pretty-print providers
 ++++++++++++++++++++++
 
-This pretty-prints the custom `ToolchainInfo` providers from `//toolchain:toolchain.bzl`::
+This pretty-prints the custom ``ToolchainInfo`` providers from ``//toolchain:toolchain.bzl``::
 
     $ bazel cquery --output=starlark --starlark:file=output_groups.cquery //toolchain:ruff
     providers:
@@ -667,14 +667,14 @@ This pretty-prints the custom `ToolchainInfo` providers from `//toolchain:toolch
        - info.tool: bazel-out/k8-opt-exec-2B5CBBC6/bin/external/bin/ruff
 
 Any provider can be printed.
-One tip is to check for struct-members with `dir(<some struct>)`, so you know what can be dereferenced,
+One tip is to check for struct-members with ``dir(<some struct>)``, so you know what can be dereferenced,
 when writing the pretty-printing code.
 
 
 Aquery
 ======
 
-To show actions and their command lines use `aquery`.
+To show actions and their command lines use ``aquery``.
 You can see a summary of what will be done::
 
     $ bazel aquery --output=summary //...
@@ -731,27 +731,27 @@ Configuration Examples
 Select
 ------
 
-There is an example `cc_binary` with a `select` statement,
-used to illustrate how `cquery` can help understanding dependencies,
+There is an example ``cc_binary`` with a ``select`` statement,
+used to illustrate how ``cquery`` can help understanding dependencies,
 see `Follow selects`_.
 
 Label Flag
 ----------
 
 A contrived example is written, and developed through the commit history
-to show how a `label_flag` can be used to add configuration to a rule.
+to show how a ``label_flag`` can be used to add configuration to a rule.
 It will be used by the tool, but belongs to the rule as we will see below.
-This is good for ad-hoc selection, that does not belong to any well defined `config_settings`.
+This is good for ad-hoc selection, that does not belong to any well defined ``config_settings``.
 Config files for tools that do not encode platform information is a good example.
-But there is a big area where `select` and `label_flags` can be used to solve the same problem.
+But there is a big area where ``select`` and ``label_flags`` can be used to solve the same problem.
 
 Runfile to a binary
 +++++++++++++++++++
 
-We see that it does not work well for a `py_binary` to use it as a data dependency,
+We see that it does not work well for a ``py_binary`` to use it as a data dependency,
 as we do not know what *file* to look for within the runfiles.
 This is done in the config directory, there is a Runner but it does not work.
-Try it for yourself with `bazel run //config:Runner`.
+Try it for yourself with ``bazel run //config:Runner``.
 
 ::
 
@@ -766,11 +766,11 @@ Try it for yourself with `bazel run //config:Runner`.
       args = [":config_file"],
     )
 
-The `args` here cannot tell the program which file to look for,
+The ``args`` here cannot tell the program which file to look for,
 it just gets the label for the flag,
 not of the real target we attempt to use.
 
-Next, we attempt to implement it into the rule, where we can access the `File` object
+Next, we attempt to implement it into the rule, where we can access the ``File`` object
 and find its path, even if it is changed on the command line.
 But we still cannot find it as a runfile::
 
@@ -829,7 +829,7 @@ But this shows the structure better.
 Change the program dependency to the statically linked program
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-You can add another label flag to switch between `//Library:Library` and `//Library:Static`
+You can add another label flag to switch between ``//Library:Library`` and ``//Library:Static``
 on the command line rather than changing BUILD files::
 
     diff --git a/BUILD.bazel b/BUILD.bazel
@@ -850,7 +850,7 @@ Build a la carte
 
 Some notes on build target selection.
 
-`--build_manual_tests` seems to actually add "manual" targets back into the build.
+``--build_manual_tests`` seems to actually add "manual" targets back into the build.
 Even for build actions, so the flag does not have the best name.
 
 By default they are not built::
@@ -860,7 +860,7 @@ By default they are not built::
     Target //:Touch up-to-date:
       bazel-bin/Touch
 
-But they show up with `--build_manual_tests`.
+But they show up with ``--build_manual_tests``.
 
 Manual tag
 ----------
@@ -880,7 +880,7 @@ These targets are tagged "manual"::
 The linter example
 ++++++++++++++++++
 
-If we make `//Parameters:Generate` manual it can not be linted through a wildcard,
+If we make ``//Parameters:Generate`` manual it can not be linted through a wildcard,
 even though its docstring is too long, we really want the first build to fail::
 
     $ bazel build --aspects //:ruff.bzl%ruff //Parameters:all
@@ -904,7 +904,7 @@ even though its docstring is too long, we really want the first build to fail::
     INFO: 2 processes: 2 internal.
     FAILED: Build did NOT complete successfully
 
-But with `--build_manual_tests` it does work.::
+But with ``--build_manual_tests`` it does work.::
 
     $ bazel build --aspects //:ruff.bzl%ruff --build_manual_tests //Parameters:Generate
     INFO: Analyzed target //Parameters:Generate (0 packages loaded, 0 targets configured).
@@ -930,9 +930,9 @@ But if you need to remove targets from the build phase you need to express that 
 Before this flag nothing could be done
 ++++++++++++++++++++++++++++++++++++++
 
-Before `--build_manual_tests` was introduce there was no way to build manual targets through wildcards.
+Before ``--build_manual_tests`` was introduce there was no way to build manual targets through wildcards.
 There is (still) a flag to filter and remove based on tags, and it can also add stuff back.
-But anything tagged as manual can not be retrieved through `--build_tag_filters`.
+But anything tagged as manual can not be retrieved through ``--build_tag_filters``.
 Neither of the following does anything::
 
     $ bazel build --aspects //:ruff.bzl%ruff --build_tag_filters=enable_again //Parameters:all
@@ -940,7 +940,7 @@ Neither of the following does anything::
     $ bazel build --aspects //:ruff.bzl%ruff --build_tag_filters=manual //Parameters:all
     $ bazel build --aspects //:ruff.bzl%ruff --build_tag_filters=+manual //Parameters:all
 
-The workaround then was to use a query, and xargs that to `bazel build`.::
+The workaround then was to use a query, and xargs that to ``bazel build``.::
 
     bazel query //... | xargs bazel build
 
@@ -950,7 +950,7 @@ Rule Factory
 ============
 
 Can be used to set default values for some attributes.
-In `//factory:factory.bzl` we recreate the codegen rule.
+In ``//factory:factory.bzl`` we recreate the codegen rule.
 But set its default value for base, this is a common pattern.
 
 ::
@@ -977,7 +977,7 @@ There are some things to note for introspection::
     #   /home/nils/task/meroton/basic-codegen/factory/factory.bzl:51:15 in <toplevel>
     #   /home/nils/task/meroton/basic-codegen/factory/factory.bzl:9:16  in make
 
-We see that there is an additional call to `make` in the stacktrace, good!
+We see that there is an additional call to ``make`` in the stacktrace, good!
 But the attribute for the base is completely hidden.
 
 We can see it with special flags
