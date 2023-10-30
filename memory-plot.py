@@ -35,7 +35,7 @@ And you want the allocation instrumenter, as is explained in the `memory guide`_
 
 To enable the profiling data add the following flags to your build
 `--generate_json_trace_profile` and `--profile=<profile file>`,
-for better fidelilty we recommend `--noslim_profile`, to avoid merging events,
+for better fidelity we recommend `--noslim_profile`, to avoid merging events,
 which is faster but requires extra effort to parse.
 
 You can also save the console output, the build event protocol (`--build_event_json_file`),

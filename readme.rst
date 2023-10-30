@@ -10,19 +10,123 @@ Background
 ==========
 
 We want to find allocations from crashed Bazel builds,
-some starlark code somewhere is eating too much memory.
+some Starlark code somewhere is eating too much memory.
 Most of the built-in tools provide post-hoc analysis
-that require the bazel server to survive, we can then dig into its data structures.
+that require the Bazel server to survive, we can then dig into its data structures.
 But if it crashes, all the data is torn down and we have very little to work with.
 
-The first step is to follow the `memory profiling guide`_,
+Reproduction: Memory eater
+--------------------------
+
+This project contains a small reproduction of pathological memory allocation,
+in a convoluted build tree.
+There is an aspect `./memory/eat.bzl` to consume large quantities of RAM,
+and a set of rules `./cpu/rules.bzl` that perform innocuous CPU work, with bounded allocations,
+
+.. _memory-bound aspect:
+
+The memory eater aspect encodes the full dependency tree of all targets,
+providers and all, with many small strings that are concatenated.
+The big string is then tied to an `Action` object with `ctx.actions.write`.
+So this string can not be freed until the action is executed.
+This can be tuned based on the dependency tree height to allocate more and more memory,
+but with this repository it is in the 200 - 500 MB range,
+to make iteration faster.
+We expect to find this as `traverse_impl` in the logs somewhere.
+
+.. _CPU-bound rules:
+
+And the CPU-bound rules are all the same,
+just implemented with numbered functions,
+to dilute their individual presence in the profiling logs.
+
+Of course real code bases are much larger, and more annoying to analyze,
+but we hope that this can serve as a jumping-off-point for a discussion.
+
+Post-hoc analysis
+-----------------
+
+The first step when troubleshooting memory is to follow the `memory profiling guide`_,
 which highlights `bazel dump --rules`
 this is often useful at indicating list errors,
 where a depset can drastically improve memory requirements.
 But we found that in this example it does not give the correct answer.
 
+Then drill deeper with `bazel dump --skylark_memory=memory.pprof`,
+which writes the memory allocations to a `pprof` format file.
+Using a java `memory instrumenter` which is explained in the `guide`_.
+
+.. _guide: `memory profiling guide`_
+
+.. note::
+
+    The script `benchmark-different-memory` and $STARTUP_FLAGS are described below
+
+::
+
+    $ ./benchmark-different-memory manual/2023-10-30/ 10g 1
+    $ bazel $STARTUP_FLAGS --host_jvm_args=-Xmx"10g" dump --skylark_memory=manual/2023-10-30/10g-1/memory.pprof
+
+    $ pprof manual/2023-10-30/10g-1/memory.pprof
+    Main binary filename not available.
+    Type: memory
+    Time: Oct 30, 2023 at 10:53am (CET)
+    Entering interactive mode (type "help" for commands, "o" for options)
+    (pprof) top
+    Showing nodes accounting for 3618.88kB, 73.87% of 4898.88kB total
+    Showing top 10 nodes out of 24
+          flat  flat%   sum%        cum   cum%
+      768.28kB 15.68% 15.68%   768.28kB 15.68%  create_cc_toolchain_config_info
+      545.74kB 11.14% 26.82%   545.74kB 11.14%  register_toolchains
+         512kB 10.45% 37.27%      512kB 10.45%  impl4
+      256.30kB  5.23% 42.51%   256.30kB  5.23%  create_linking_context_from_compilation_outputs
+      256.11kB  5.23% 47.73%  2338.12kB 47.73%  <toplevel>
+      256.11kB  5.23% 52.96%   256.11kB  5.23%  _get_toolchain_global_make_variables
+      256.10kB  5.23% 58.19%   256.10kB  5.23%  _is_absolute
+      256.10kB  5.23% 63.42%   256.10kB  5.23%  spin10
+      256.08kB  5.23% 68.64%   256.08kB  5.23%  _add_linker_artifacts_output_groups
+      256.05kB  5.23% 73.87%   256.05kB  5.23%  alias
+
+This looks good, and contains a lot of information,
+but we have been unable to find the real culprit,
+the exponential string allocation of the memory eater aspect.
+
+`impl4` and `spin10` are two of the `CPU-bound rules`_.
+
+To illustrate, using too little memory::
+
+    $ ./benchmark-different-memory manual/2023-10-30/ 200m 1
+    WARNING: Running Bazel server needs to be killed, because the startup options are different
+    .
+    Starting local Bazel server and connecting to it...
+    INFO: Starting clean (this may take a while). Consider using --async if the clean takes more than several minutes.
+    WARNING: Running Bazel server needs to be killed, because the startup options are different
+    .
+    Starting local Bazel server and connecting to it...
+    INFO: Invocation ID: 72092cbf-edf1-45db-bb5b-29658e731d75
+    Loading:
+    Loading:
+    Loading: 0 packages loaded
+    Analyzing: 42 targets (8 packages loaded, 0 targets configured)
+    Analyzing: 42 targets (51 packages loaded, 376 targets configured)
+    FATAL: bazel ran out of memory and crashed. An attempt will be made to write a heap dump to
+     /CAS/bazel-cache/38ee34394b564c6d0289781c6b6bf0c1/72092cbf-edf1-45db-bb5b-29658e731d75.heapdump.hprof.
+    Printing stack trace:
+    net.starlark.java.eval.Starlark$UncheckedEvalError: OutOfMemoryError thrown during Starlark
+     evaluation (//cpu:lock_19)
+            at <starlark>.write(<builtin>:0)
+            at <starlark>.traverse_impl(/home/nils/task/meroton/basic-codegen/memory/eat.bzl:57
+    )
+    Caused by: java.lang.OutOfMemoryError: Java heap space
+
+Fails for allocation errors in the aspect,
+but we cannot dump the memory after Bazel crashed.
+
+Analyze your own memory with this reproduction project
+======================================================
+
 Measurement Data
-================
+----------------
 
 This requires Bazel's `profiling data`_ for multiple build with different memory limits.
 Bazel's memory can be limited through the startup option::
@@ -44,7 +148,7 @@ Profiling data
 
 To enable the profiling data add the following flags to your build
 `--generate_json_trace_profile` and `--profile=<profile file>`,
-for better fidelilty we recommend `--noslim_profile`, to avoid merging events,
+for better fidelity we recommend `--noslim_profile`, to avoid merging events,
 which is faster but requires extra effort to parse.
 
 You can also save the console output, the build event protocol (`--build_event_json_file`),
@@ -59,7 +163,7 @@ Sample benchmarking file
 You can start with `benchmark-different-memory` in this repository,
 it is designed to make multiple attempts with different memory limits.
 
-This has a bunch of flags, first skymeld, nobuild, or just regular,
+This contains a bunch of flags, first skymeld, nobuild, or just regular,
 then the `profiling data`_ flags,
 followed by remote execution to a local Buildbarn deployment
 and finally our memory traversal aspect that we want to benchmark.
@@ -67,6 +171,12 @@ You probably want to split this up into multiple bash arrays or bazelrc configs.
 
 Note that this does not set the `STARTUP_FLAGS`,
 you need to set that in your interactive terminal.
+
+There is currently no way to change build mode (skymeld, nobuild) from the measurement driver.
+You need to modify the file manually to change mode of operation,
+but it is possible to add that the benchmarking script's API.
+
+.. TODO: Setup "$@" to accept flags.
 
 .. TODO: Set STARTUP_FLAGS in the script if they are missing.
 
@@ -162,7 +272,7 @@ Or the number of restarts for a function:
 And much much more, please tell us your ideas.
 
 Basic Analysis
-==============
+--------------
 
 Some basic measurements for memory pressure through garbage collection
 were implemented in `parse-profile.py` as part of the exploratory work,
