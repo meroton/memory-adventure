@@ -64,36 +64,39 @@ Using a java ``memory instrumenter`` which is explained in the `guide`_.
 
 ::
 
-    $ ./benchmark-different-memory manual/2023-10-30/ 10g 1
-    $ bazel $STARTUP_FLAGS --host_jvm_args=-Xmx"10g" dump --skylark_memory=manual/2023-10-30/10g-1/memory.pprof
+    $ ./benchmark-different-memory manual/2023-10-30/ 10g 2
+    # The dump is done within the script:
+    # $ bazel $STARTUP_FLAGS --host_jvm_args=-Xmx"10g" dump --skylark_memory=manual/2023-10-30/10g-1/memory.pprof
 
-    $ pprof manual/2023-10-30/10g-1/memory.pprof
+    $ pprof manual/2023-10-30/10g-2/memory.pprof
     Main binary filename not available.
     Type: memory
-    Time: Oct 30, 2023 at 10:53am (CET)
+    Time: Oct 30, 2023 at 12:16pm (CET)
     Entering interactive mode (type "help" for commands, "o" for options)
     (pprof) top
-    Showing nodes accounting for 3618.88kB, 73.87% of 4898.88kB total
-    Showing top 10 nodes out of 24
+    Showing nodes accounting for 2816.70kB, 73.34% of 3840.68kB total
+    Showing top 10 nodes out of 19
           flat  flat%   sum%        cum   cum%
-      768.28kB 15.68% 15.68%   768.28kB 15.68%  create_cc_toolchain_config_info
-      545.74kB 11.14% 26.82%   545.74kB 11.14%  register_toolchains
-         512kB 10.45% 37.27%      512kB 10.45%  impl4
-      256.30kB  5.23% 42.51%   256.30kB  5.23%  create_linking_context_from_compilation_outputs
-      256.11kB  5.23% 47.73%  2338.12kB 47.73%  <toplevel>
-      256.11kB  5.23% 52.96%   256.11kB  5.23%  _get_toolchain_global_make_variables
-      256.10kB  5.23% 58.19%   256.10kB  5.23%  _is_absolute
-      256.10kB  5.23% 63.42%   256.10kB  5.23%  spin10
-      256.08kB  5.23% 68.64%   256.08kB  5.23%  _add_linker_artifacts_output_groups
-      256.05kB  5.23% 73.87%   256.05kB  5.23%  alias
+         512kB 13.33% 13.33%      512kB 13.33%  impl2
+      256.16kB  6.67% 20.00%   256.16kB  6.67%  traverse_impl
+      256.11kB  6.67% 26.67%   256.11kB  6.67%  _add_linker_artifacts_output_groups
+      256.09kB  6.67% 33.34%   256.09kB  6.67%  alias
+      256.09kB  6.67% 40.00%   256.09kB  6.67%  rule
+      256.08kB  6.67% 46.67%   256.08kB  6.67%  to_list
+      256.06kB  6.67% 53.34%   256.06kB  6.67%  impl7
+      256.04kB  6.67% 60.01%   256.04kB  6.67%  _is_stamping_enabled
+      256.04kB  6.67% 66.67%   256.04kB  6.67%  impl18
+      256.03kB  6.67% 73.34%   768.15kB 20.00%  cc_binary_impl
 
 This looks good, and contains a lot of information,
-but we have been unable to find the real culprit,
-the exponential string allocation of the memory eater aspect.
+but we are not able to find the real culprit.
+The exponential string allocation of the memory eater aspect,
+`traverse_impl`, shows up with modest allocation.
+But the 17MB allocation is nowhere to be seen.
 
 ``impl4`` and ``spin10`` are two of the `CPU-bound rules`_.
 
-To illustrate, using too little memory::
+To illustrate, using too little memory (200m)::
 
     $ ./benchmark-different-memory manual/2023-10-30/ 200m 1
     WARNING: Running Bazel server needs to be killed, because the startup options are different
