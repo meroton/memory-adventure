@@ -94,7 +94,7 @@ The exponential string allocation of the memory eater aspect,
 `traverse_impl`, shows up with modest allocation.
 But the 17MB allocation is nowhere to be seen.
 
-``impl4`` and ``spin10`` are two of the `CPU-bound rules`_.
+``impl2``, ``impl7`` and ``spin18`` are three of the `CPU-bound rules`_.
 
 To illustrate, using too little memory (200m)::
 

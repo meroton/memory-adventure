@@ -45,6 +45,7 @@ bazel $STARTUP_FLAGS --host_jvm_args=-Xmx"$mem" build \
     //... \
     2>&1 | tee "$dir"/console
 
+# TODO: reuse the full startup flag
 # shellcheck disable=SC2086
 bazel $STARTUP_FLAGS --host_jvm_args=-Xmx"$mem" dump \
     --skylark_memory="$dir/memory.pprof"
